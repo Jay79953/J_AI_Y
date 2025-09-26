@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Askify | Sign Up</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #e6f7ff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 350px;
+    }
+
+    input, button {
+      display: block;
+      margin: 10px auto;
+      padding: 10px;
+      width: 90%;
+      font-size: 14px;
+    }
+
+    button {
+      background-color: #0073e6;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #005bb5;
+    }
+
+    #signupSection, #otpSection, #qrSection {
+      display: none;
+    }
+
+    .link {
+      color: #0073e6;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    img {
+      margin: 10px 0;
+    }
+
+    #passMatch {
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2 id="title">Welcome to Askify</h2>
+
+    <!-- Landing Button -->
+    <div id="startSection">
+      <button onclick="showSignup()">Get Started</button>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="signupSection">
+      <input type="email" id="email" placeholder="Gmail">
+      <input type="password" id="password" placeholder="Password">
+      <input type="password" id="confirmPassword" placeholder="Confirm Password">
+      <p id="passMatch"></p>
+      <button onclick="sendOTP()" id="sendOtpBtn" disabled>Send OTP</button>
+    </div>
+
+    <!-- OTP -->
+    <div id="otpSection">
+      <input type="text" id="otpInput" placeholder="Enter OTP">
+      <button onclick="verifyOTP()">Verify OTP</button>
+    </div>
+
+    <!-- QR + Payment -->
+    <div id="qrSection">
+      <p>✅ OTP Verified! Please scan & pay ₹99</p>
+      <img src="https://api.qrserver.com/v1/create-qr-code/?data=upi://pay?pa=anvy.creations@oksbi&am=99&cu=INR&size=200x200" width="200" alt="QR Code">
+
+      <input type="text" placeholder="Bank Account Name">
+      <input type="text" placeholder="Payment Method (GPay/Paytm)">
+      <input type="text" placeholder="Transaction/Ref ID">
+      <button onclick="submitForm()">Submit</button>
+    </div>
+  </div>
+
+  <script>
+    const password = document.getElementById("password");
+    const confirmPassword = document.getElementById("confirmPassword");
+    const passMsg = document.getElementById("passMatch");
+    const sendOtpBtn = document.getElementById("sendOtpBtn");
+
+    function showSignup() {
+      document.getElementById("startSection").style.display = "none";
+      document.getElementById("signupSection").style.display = "block";
+      document.getElementById("title").innerText = "Sign Up";
+    }
+
+    confirmPassword.addEventListener("input", () => {
+      if (password.value === confirmPassword.value && password.value.length >= 1) {
+        passMsg.innerText = "✅ Passwords match";
+        passMsg.style.color = "green";
+        sendOtpBtn.disabled = false;
+      } else {
+        passMsg.innerText = "❌ Passwords do not match";
+        passMsg.style.color = "red";
+        sendOtpBtn.disabled = true;
+      }
+    });
+
+    function sendOTP() {
+      const email = document.getElementById("email").value;
+
+      fetch("/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "sent") {
+          alert("OTP sent to email.");
+          document.getElementById("signupSection").style.display = "none";
+          document.getElementById("otpSection").style.display = "block";
+        } else {
+          alert("Error: " + data.message);
+        }
+      });
+    }
+
+    function verifyOTP() {
+      const email = document.getElementById("email").value;
+      const otp = document.getElementById("otpInput").value;
+
+      fetch("/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "verified") {
+          document.getElementById("otpSection").style.display = "none";
+          document.getElementById("qrSection").style.display = "block";
+        } else {
+          alert("Invalid OTP");
+        }
+      });
+    }
+
+    function submitForm() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const bank_name = document.querySelector('#qrSection input[placeholder="Bank Account Name"]').value;
+      const method = document.querySelector('#qrSection input[placeholder="Payment Method (GPay/Paytm)"]').value;
+      const upi = document.querySelector('#qrSection input[placeholder="Transaction/Ref ID"]').value;
+
+      fetch("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, bank_name, method, upi })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "success") {
+          alert("Registered successfully!");
+          location.reload();
+        } else {
+          alert("Registration failed: " + data.message);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
