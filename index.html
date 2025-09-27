@@ -41,18 +41,21 @@
       background-color: #005bb5;
     }
 
-    #signupSection, #loginSection {
+    #signupSection, #qrSection {
       display: none;
     }
 
-    .link {
-      color: #0073e6;
-      text-decoration: underline;
-      cursor: pointer;
+    img {
+      margin: 10px 0;
     }
 
     #passMatch {
       font-size: 12px;
+    }
+
+    .warning {
+      color: red;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -63,8 +66,7 @@
 
     <!-- Landing Button -->
     <div id="startSection">
-      <button onclick="showSignup()">Get Started</button>
-      <p>Already have an account? <span class="link" onclick="showLogin()">Login</span></p>
+      <button onclick="showSignup()">Register</button>
     </div>
 
     <!-- SIGNUP -->
@@ -73,21 +75,18 @@
       <input type="password" id="password" placeholder="Password">
       <input type="password" id="confirmPassword" placeholder="Confirm Password">
       <p id="passMatch"></p>
-
-      <input type="text" id="bank_name" placeholder="Bank Account Name">
-      <input type="text" id="method" placeholder="Payment Method (GPay/Paytm)">
-      <input type="text" id="upi" placeholder="UPI / Transaction ID">
-
-      <button onclick="register()" id="registerBtn" disabled>Register</button>
-      <p>Already registered? <span class="link" onclick="showLogin()">Login</span></p>
+      <button onclick="goToQR()" id="nextBtn" disabled>Next</button>
     </div>
 
-    <!-- LOGIN -->
-    <div id="loginSection">
-      <input type="email" id="loginEmail" placeholder="Gmail">
-      <input type="password" id="loginPassword" placeholder="Password">
-      <button onclick="login()">Login</button>
-      <p>New user? <span class="link" onclick="showSignup()">Sign Up</span></p>
+    <!-- QR + Payment -->
+    <div id="qrSection">
+      <p class="warning">⚠ Please Pay ₹99/- . Your account will be approved only if you pay ₹99/-</p>
+      <img src="https://api.qrserver.com/v1/create-qr-code/?data=upi://pay?pa=anvy.creations@oksbi&am=99&cu=INR&size=200x200" width="200" alt="QR Code">
+
+      <input type="text" id="bankName" placeholder="Bank Account Name">
+      <input type="text" id="method" placeholder="Payment Method (GPay/Paytm)">
+      <input type="text" id="upiId" placeholder="Transaction/Ref ID">
+      <button onclick="submitForm()">Register</button>
     </div>
   </div>
 
@@ -95,77 +94,53 @@
     const password = document.getElementById("password");
     const confirmPassword = document.getElementById("confirmPassword");
     const passMsg = document.getElementById("passMatch");
-    const registerBtn = document.getElementById("registerBtn");
+    const nextBtn = document.getElementById("nextBtn");
 
     function showSignup() {
       document.getElementById("startSection").style.display = "none";
-      document.getElementById("loginSection").style.display = "none";
       document.getElementById("signupSection").style.display = "block";
       document.getElementById("title").innerText = "Sign Up";
-    }
-
-    function showLogin() {
-      document.getElementById("startSection").style.display = "none";
-      document.getElementById("signupSection").style.display = "none";
-      document.getElementById("loginSection").style.display = "block";
-      document.getElementById("title").innerText = "Login";
     }
 
     confirmPassword.addEventListener("input", () => {
       if (password.value === confirmPassword.value && password.value.length >= 1) {
         passMsg.innerText = "✅ Passwords match";
         passMsg.style.color = "green";
-        registerBtn.disabled = false;
+        nextBtn.disabled = false;
       } else {
         passMsg.innerText = "❌ Passwords do not match";
         passMsg.style.color = "red";
-        registerBtn.disabled = true;
+        nextBtn.disabled = true;
       }
     });
 
-    async function register() {
+    function goToQR() {
+      document.getElementById("signupSection").style.display = "none";
+      document.getElementById("qrSection").style.display = "block";
+      document.getElementById("title").innerText = "Complete Payment";
+    }
+
+    function submitForm() {
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
-      const bank_name = document.getElementById("bank_name").value;
+      const bank_name = document.getElementById("bankName").value;
       const method = document.getElementById("method").value;
-      const upi = document.getElementById("upi").value;
+      const upi = document.getElementById("upiId").value;
 
-      const res = await fetch("/register", {
+      fetch("/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, bank_name, method, upi })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "success") {
+          alert("Registered successfully!");
+          location.reload();
+        } else {
+          alert("Registration failed: " + data.message);
+        }
       });
-
-      if (res.ok) {
-        const blob = await res.blob();
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "Askify.rar";
-        link.click();
-        alert("✅ Registered successfully! File downloaded.");
-        showLogin();
-      } else {
-        const msg = await res.json();
-        alert("❌ Error: " + msg.message);
-      }
-    }
-
-    async function login() {
-      const email = document.getElementById("loginEmail").value;
-      const password = document.getElementById("loginPassword").value;
-
-      const res = await fetch("/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-
-      const msg = await res.json();
-      if (msg.status === "success") {
-        alert("✅ Login successful!");
-      } else {
-        alert("❌ Invalid email or password.");
-      }
     }
   </script>
 </body>
