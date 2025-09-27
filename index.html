@@ -41,7 +41,7 @@
       background-color: #005bb5;
     }
 
-    #signupSection, #otpSection, #qrSection {
+    #signupSection, #loginSection {
       display: none;
     }
 
@@ -49,10 +49,6 @@
       color: #0073e6;
       text-decoration: underline;
       cursor: pointer;
-    }
-
-    img {
-      margin: 10px 0;
     }
 
     #passMatch {
@@ -68,6 +64,7 @@
     <!-- Landing Button -->
     <div id="startSection">
       <button onclick="showSignup()">Get Started</button>
+      <p>Already have an account? <span class="link" onclick="showLogin()">Login</span></p>
     </div>
 
     <!-- SIGNUP -->
@@ -76,24 +73,21 @@
       <input type="password" id="password" placeholder="Password">
       <input type="password" id="confirmPassword" placeholder="Confirm Password">
       <p id="passMatch"></p>
-      <button onclick="sendOTP()" id="sendOtpBtn" disabled>Send OTP</button>
+
+      <input type="text" id="bank_name" placeholder="Bank Account Name">
+      <input type="text" id="method" placeholder="Payment Method (GPay/Paytm)">
+      <input type="text" id="upi" placeholder="UPI / Transaction ID">
+
+      <button onclick="register()" id="registerBtn" disabled>Register</button>
+      <p>Already registered? <span class="link" onclick="showLogin()">Login</span></p>
     </div>
 
-    <!-- OTP -->
-    <div id="otpSection">
-      <input type="text" id="otpInput" placeholder="Enter OTP">
-      <button onclick="verifyOTP()">Verify OTP</button>
-    </div>
-
-    <!-- QR + Payment -->
-    <div id="qrSection">
-      <p>✅ OTP Verified! Please scan & pay ₹99</p>
-      <img src="https://api.qrserver.com/v1/create-qr-code/?data=upi://pay?pa=anvy.creations@oksbi&am=99&cu=INR&size=200x200" width="200" alt="QR Code">
-
-      <input type="text" placeholder="Bank Account Name">
-      <input type="text" placeholder="Payment Method (GPay/Paytm)">
-      <input type="text" placeholder="Transaction/Ref ID">
-      <button onclick="submitForm()">Submit</button>
+    <!-- LOGIN -->
+    <div id="loginSection">
+      <input type="email" id="loginEmail" placeholder="Gmail">
+      <input type="password" id="loginPassword" placeholder="Password">
+      <button onclick="login()">Login</button>
+      <p>New user? <span class="link" onclick="showSignup()">Sign Up</span></p>
     </div>
   </div>
 
@@ -101,87 +95,77 @@
     const password = document.getElementById("password");
     const confirmPassword = document.getElementById("confirmPassword");
     const passMsg = document.getElementById("passMatch");
-    const sendOtpBtn = document.getElementById("sendOtpBtn");
+    const registerBtn = document.getElementById("registerBtn");
 
     function showSignup() {
       document.getElementById("startSection").style.display = "none";
+      document.getElementById("loginSection").style.display = "none";
       document.getElementById("signupSection").style.display = "block";
       document.getElementById("title").innerText = "Sign Up";
+    }
+
+    function showLogin() {
+      document.getElementById("startSection").style.display = "none";
+      document.getElementById("signupSection").style.display = "none";
+      document.getElementById("loginSection").style.display = "block";
+      document.getElementById("title").innerText = "Login";
     }
 
     confirmPassword.addEventListener("input", () => {
       if (password.value === confirmPassword.value && password.value.length >= 1) {
         passMsg.innerText = "✅ Passwords match";
         passMsg.style.color = "green";
-        sendOtpBtn.disabled = false;
+        registerBtn.disabled = false;
       } else {
         passMsg.innerText = "❌ Passwords do not match";
         passMsg.style.color = "red";
-        sendOtpBtn.disabled = true;
+        registerBtn.disabled = true;
       }
     });
 
-    function sendOTP() {
-      const email = document.getElementById("email").value;
-
-      fetch("/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "sent") {
-          alert("OTP sent to email.");
-          document.getElementById("signupSection").style.display = "none";
-          document.getElementById("otpSection").style.display = "block";
-        } else {
-          alert("Error: " + data.message);
-        }
-      });
-    }
-
-    function verifyOTP() {
-      const email = document.getElementById("email").value;
-      const otp = document.getElementById("otpInput").value;
-
-      fetch("/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "verified") {
-          document.getElementById("otpSection").style.display = "none";
-          document.getElementById("qrSection").style.display = "block";
-        } else {
-          alert("Invalid OTP");
-        }
-      });
-    }
-
-    function submitForm() {
+    async function register() {
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
-      const bank_name = document.querySelector('#qrSection input[placeholder="Bank Account Name"]').value;
-      const method = document.querySelector('#qrSection input[placeholder="Payment Method (GPay/Paytm)"]').value;
-      const upi = document.querySelector('#qrSection input[placeholder="Transaction/Ref ID"]').value;
+      const bank_name = document.getElementById("bank_name").value;
+      const method = document.getElementById("method").value;
+      const upi = document.getElementById("upi").value;
 
-      fetch("/register", {
+      const res = await fetch("/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, bank_name, method, upi })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "success") {
-          alert("Registered successfully!");
-          location.reload();
-        } else {
-          alert("Registration failed: " + data.message);
-        }
       });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "Askify.rar";
+        link.click();
+        alert("✅ Registered successfully! File downloaded.");
+        showLogin();
+      } else {
+        const msg = await res.json();
+        alert("❌ Error: " + msg.message);
+      }
+    }
+
+    async function login() {
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+
+      const msg = await res.json();
+      if (msg.status === "success") {
+        alert("✅ Login successful!");
+      } else {
+        alert("❌ Invalid email or password.");
+      }
     }
   </script>
 </body>
