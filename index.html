@@ -41,7 +41,7 @@
       background-color: #005bb5;
     }
 
-    #signupSection, #otpSection, #qrSection, #successSection {
+    #signupSection, #qrSection, #successSection {
       display: none;
     }
 
@@ -76,18 +76,12 @@
       <input type="password" id="password" placeholder="Password">
       <input type="password" id="confirmPassword" placeholder="Confirm Password">
       <p id="passMatch"></p>
-      <button onclick="sendOTP()" id="sendOtpBtn" disabled>Send OTP</button>
-    </div>
-
-    <!-- OTP -->
-    <div id="otpSection">
-      <input type="text" id="otpInput" placeholder="Enter OTP">
-      <button onclick="verifyOTP()">Verify OTP</button>
+      <button onclick="goToPayment()" id="nextBtn" disabled>Next</button>
     </div>
 
     <!-- QR + Payment -->
     <div id="qrSection">
-      <p>✅ OTP Verified! Please scan & pay ₹99</p>
+      <p>✅ Account Info Verified! Please scan & pay ₹99</p>
       <img src="https://api.qrserver.com/v1/create-qr-code/?data=upi://pay?pa=anvy.creations@oksbi&am=99&cu=INR&size=200x200" width="200" alt="QR Code">
 
       <input type="text" placeholder="Bank Account Name">
@@ -115,7 +109,7 @@
     const password = document.getElementById("password");
     const confirmPassword = document.getElementById("confirmPassword");
     const passMsg = document.getElementById("passMatch");
-    const sendOtpBtn = document.getElementById("sendOtpBtn");
+    const nextBtn = document.getElementById("nextBtn");
 
     function showSignup() {
       document.getElementById("startSection").style.display = "none";
@@ -123,59 +117,26 @@
       document.getElementById("title").innerText = "Sign Up";
     }
 
+    // Enable Next button only when passwords match
     confirmPassword.addEventListener("input", () => {
       if (password.value === confirmPassword.value && password.value.length >= 1) {
         passMsg.innerText = "✅ Passwords match";
         passMsg.style.color = "green";
-        sendOtpBtn.disabled = false;
+        nextBtn.disabled = false;
       } else {
         passMsg.innerText = "❌ Passwords do not match";
         passMsg.style.color = "red";
-        sendOtpBtn.disabled = true;
+        nextBtn.disabled = true;
       }
     });
 
-    function sendOTP() {
-      const email = document.getElementById("email").value;
-
-      fetch("/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "sent") {
-          alert("OTP sent to email.");
-          document.getElementById("signupSection").style.display = "none";
-          document.getElementById("otpSection").style.display = "block";
-        } else {
-          alert("Error: " + data.message);
-        }
-      });
+    // Directly go to payment section
+    function goToPayment() {
+      document.getElementById("signupSection").style.display = "none";
+      document.getElementById("qrSection").style.display = "block";
+      document.getElementById("title").innerText = "Complete Payment";
     }
 
-    function verifyOTP() {
-      const email = document.getElementById("email").value;
-      const otp = document.getElementById("otpInput").value;
-
-      fetch("/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === "verified") {
-          document.getElementById("otpSection").style.display = "none";
-          document.getElementById("qrSection").style.display = "block";
-        } else {
-          alert("Invalid OTP");
-        }
-      });
-    }
-
-    // MODIFIED SUBMIT FORM FUNCTION - Shows success page instead of auto-download
     async function submitForm() {
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
@@ -190,24 +151,20 @@
           body: JSON.stringify({ email, password, bank_name, method, upi })
         });
 
-        // Check if response is JSON (error) or successful registration
         const contentType = response.headers.get('content-type');
         
         if (contentType && contentType.includes('application/json')) {
-          // Handle JSON response (errors)
           const data = await response.json();
           if (data.status === "exists") {
             alert("Email already registered!");
           } else if (data.status === "error") {
             alert("Registration failed: " + data.message);
           } else if (data.status === "success") {
-            // Show success page
             document.getElementById("qrSection").style.display = "none";
             document.getElementById("successSection").style.display = "block";
             document.getElementById("title").innerText = "Welcome to Askify!";
           }
         } else {
-          // This shouldn't happen with the new backend, but just in case
           alert("Registration completed, but there was an issue with the response.");
         }
       } catch (error) {
@@ -216,7 +173,6 @@
       }
     }
 
-    // NEW DOWNLOAD FUNCTION - Triggered when user clicks download button
     async function downloadFile() {
       try {
         const response = await fetch("/download-file", {
@@ -225,8 +181,6 @@
 
         if (response.ok) {
           const blob = await response.blob();
-          
-          // Create download link
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
@@ -235,7 +189,6 @@
           a.click();
           document.body.removeChild(a);
           window.URL.revokeObjectURL(url);
-          
           alert("File downloaded successfully!");
         } else {
           alert("Error downloading file. Please try again.");
