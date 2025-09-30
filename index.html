@@ -81,7 +81,7 @@
 
     <!-- QR + Payment -->
     <div id="qrSection">
-      <p>✅ Account Info Verified! Please scan & pay ₹99</p>
+      <p>✅ Account Created! Please scan & pay ₹99</p>
       <img src="https://api.qrserver.com/v1/create-qr-code/?data=upi://pay?pa=anvy.creations@oksbi&am=99&cu=INR&size=200x200" width="200" alt="QR Code">
 
       <input type="text" placeholder="Bank Account Name">
@@ -117,7 +117,6 @@
       document.getElementById("title").innerText = "Sign Up";
     }
 
-    // Enable Next button only when passwords match
     confirmPassword.addEventListener("input", () => {
       if (password.value === confirmPassword.value && password.value.length >= 1) {
         passMsg.innerText = "✅ Passwords match";
@@ -130,17 +129,17 @@
       }
     });
 
-    // Directly go to payment section
     function goToPayment() {
       document.getElementById("signupSection").style.display = "none";
       document.getElementById("qrSection").style.display = "block";
-      document.getElementById("title").innerText = "Complete Payment";
+      document.getElementById("title").innerText = "Payment";
     }
 
+    // SUBMIT FORM FUNCTION - Registers user and shows success
     async function submitForm() {
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
-      const bank_name = document.querySelector('#qrSection input[placeholder="Bank Account Name"]').value;
+      const name = document.querySelector('#qrSection input[placeholder="Bank Account Name"]').value;
       const method = document.querySelector('#qrSection input[placeholder="Payment Method (GPay/Paytm)"]').value;
       const upi = document.querySelector('#qrSection input[placeholder="Transaction/Ref ID"]').value;
 
@@ -148,7 +147,7 @@
         const response = await fetch("/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, bank_name, method, upi })
+          body: JSON.stringify({ email, password, name, method, upi, uuid: "web" })
         });
 
         const contentType = response.headers.get('content-type');
@@ -165,7 +164,7 @@
             document.getElementById("title").innerText = "Welcome to Askify!";
           }
         } else {
-          alert("Registration completed, but there was an issue with the response.");
+          alert("Registration completed, but unexpected response format.");
         }
       } catch (error) {
         console.error('Error:', error);
@@ -173,6 +172,7 @@
       }
     }
 
+    // DOWNLOAD FUNCTION
     async function downloadFile() {
       try {
         const response = await fetch("/download-file", {
