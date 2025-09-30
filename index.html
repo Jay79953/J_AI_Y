@@ -41,8 +41,14 @@
       background-color: #005bb5;
     }
 
-    #signupSection, #qrSection {
+    #signupSection, #otpSection, #qrSection, #successSection {
       display: none;
+    }
+
+    .link {
+      color: #0073e6;
+      text-decoration: underline;
+      cursor: pointer;
     }
 
     img {
@@ -51,11 +57,6 @@
 
     #passMatch {
       font-size: 12px;
-    }
-
-    .warning {
-      color: red;
-      font-weight: bold;
     }
   </style>
 </head>
@@ -66,7 +67,7 @@
 
     <!-- Landing Button -->
     <div id="startSection">
-      <button onclick="showSignup()">Register</button>
+      <button onclick="showSignup()">Get Started</button>
     </div>
 
     <!-- SIGNUP -->
@@ -75,18 +76,38 @@
       <input type="password" id="password" placeholder="Password">
       <input type="password" id="confirmPassword" placeholder="Confirm Password">
       <p id="passMatch"></p>
-      <button onclick="goToQR()" id="nextBtn" disabled>Next</button>
+      <button onclick="sendOTP()" id="sendOtpBtn" disabled>Send OTP</button>
+    </div>
+
+    <!-- OTP -->
+    <div id="otpSection">
+      <input type="text" id="otpInput" placeholder="Enter OTP">
+      <button onclick="verifyOTP()">Verify OTP</button>
     </div>
 
     <!-- QR + Payment -->
     <div id="qrSection">
-      <p class="warning">⚠ Please Pay ₹99/- . Your account will be approved only if you pay ₹99/-</p>
+      <p>✅ OTP Verified! Please scan & pay ₹99</p>
       <img src="https://api.qrserver.com/v1/create-qr-code/?data=upi://pay?pa=anvy.creations@oksbi&am=99&cu=INR&size=200x200" width="200" alt="QR Code">
 
-      <input type="text" id="bankName" placeholder="Bank Account Name">
-      <input type="text" id="method" placeholder="Payment Method (GPay/Paytm)">
-      <input type="text" id="upiId" placeholder="Transaction/Ref ID">
-      <button onclick="submitForm()">Register</button>
+      <input type="text" placeholder="Bank Account Name">
+      <input type="text" placeholder="Payment Method (GPay/Paytm)">
+      <input type="text" placeholder="Transaction/Ref ID">
+      <button onclick="submitForm()">Submit</button>
+    </div>
+
+    <!-- SUCCESS PAGE WITH DOWNLOAD -->
+    <div id="successSection">
+      <h3>🎉 Registration Successful!</h3>
+      <p>Welcome to Askify! Your account has been created successfully.</p>
+      <p>Click the button below to download your welcome package:</p>
+      <button onclick="downloadFile()" style="background-color: #28a745; font-size: 16px; padding: 15px;">
+        📥 Download Askify Package
+      </button>
+      <br><br>
+      <button onclick="location.reload()" style="background-color: #6c757d;">
+        🏠 Back to Home
+      </button>
     </div>
   </div>
 
@@ -94,7 +115,7 @@
     const password = document.getElementById("password");
     const confirmPassword = document.getElementById("confirmPassword");
     const passMsg = document.getElementById("passMatch");
-    const nextBtn = document.getElementById("nextBtn");
+    const sendOtpBtn = document.getElementById("sendOtpBtn");
 
     function showSignup() {
       document.getElementById("startSection").style.display = "none";
@@ -106,41 +127,123 @@
       if (password.value === confirmPassword.value && password.value.length >= 1) {
         passMsg.innerText = "✅ Passwords match";
         passMsg.style.color = "green";
-        nextBtn.disabled = false;
+        sendOtpBtn.disabled = false;
       } else {
         passMsg.innerText = "❌ Passwords do not match";
         passMsg.style.color = "red";
-        nextBtn.disabled = true;
+        sendOtpBtn.disabled = true;
       }
     });
 
-    function goToQR() {
-      document.getElementById("signupSection").style.display = "none";
-      document.getElementById("qrSection").style.display = "block";
-      document.getElementById("title").innerText = "Complete Payment";
-    }
-
-    function submitForm() {
+    function sendOTP() {
       const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      const bank_name = document.getElementById("bankName").value;
-      const method = document.getElementById("method").value;
-      const upi = document.getElementById("upiId").value;
 
-      fetch("/register", {
+      fetch("/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, bank_name, method, upi })
+        body: JSON.stringify({ email })
       })
       .then(res => res.json())
       .then(data => {
-        if (data.status === "success") {
-          alert("Registered successfully!");
-          location.reload();
+        if (data.status === "sent") {
+          alert("OTP sent to email.");
+          document.getElementById("signupSection").style.display = "none";
+          document.getElementById("otpSection").style.display = "block";
         } else {
-          alert("Registration failed: " + data.message);
+          alert("Error: " + data.message);
         }
       });
+    }
+
+    function verifyOTP() {
+      const email = document.getElementById("email").value;
+      const otp = document.getElementById("otpInput").value;
+
+      fetch("/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "verified") {
+          document.getElementById("otpSection").style.display = "none";
+          document.getElementById("qrSection").style.display = "block";
+        } else {
+          alert("Invalid OTP");
+        }
+      });
+    }
+
+    // MODIFIED SUBMIT FORM FUNCTION - Shows success page instead of auto-download
+    async function submitForm() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const bank_name = document.querySelector('#qrSection input[placeholder="Bank Account Name"]').value;
+      const method = document.querySelector('#qrSection input[placeholder="Payment Method (GPay/Paytm)"]').value;
+      const upi = document.querySelector('#qrSection input[placeholder="Transaction/Ref ID"]').value;
+
+      try {
+        const response = await fetch("/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, bank_name, method, upi })
+        });
+
+        // Check if response is JSON (error) or successful registration
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+          // Handle JSON response (errors)
+          const data = await response.json();
+          if (data.status === "exists") {
+            alert("Email already registered!");
+          } else if (data.status === "error") {
+            alert("Registration failed: " + data.message);
+          } else if (data.status === "success") {
+            // Show success page
+            document.getElementById("qrSection").style.display = "none";
+            document.getElementById("successSection").style.display = "block";
+            document.getElementById("title").innerText = "Welcome to Askify!";
+          }
+        } else {
+          // This shouldn't happen with the new backend, but just in case
+          alert("Registration completed, but there was an issue with the response.");
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert("Registration failed: " + error.message);
+      }
+    }
+
+    // NEW DOWNLOAD FUNCTION - Triggered when user clicks download button
+    async function downloadFile() {
+      try {
+        const response = await fetch("/download-file", {
+          method: "GET"
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          
+          // Create download link
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'ASKIFY.rar';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          
+          alert("File downloaded successfully!");
+        } else {
+          alert("Error downloading file. Please try again.");
+        }
+      } catch (error) {
+        console.error('Download error:', error);
+        alert("Download failed: " + error.message);
+      }
     }
   </script>
 </body>
