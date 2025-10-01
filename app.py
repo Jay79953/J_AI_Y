@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
@@ -24,9 +24,16 @@ client = gspread.authorize(creds)
 sheet = client.open("Users").sheet1
 
 
+# ---- Serve HTML ----
 @app.route('/')
-def index():
+def home():
     return send_file("index.html")
+
+
+# ---- Serve payment QR image from root directory ----
+@app.route('/payment.png')
+def serve_payment_qr():
+    return send_file("payment.png", mimetype='image/png')
 
 
 @app.route('/register', methods=['POST'])
@@ -61,6 +68,7 @@ def register():
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
+
 
 @app.route('/download-file', methods=['GET'])
 def download_file():
